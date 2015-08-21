@@ -4,6 +4,8 @@
 
 #include <linux/init.h> 
 #include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/printk.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -13,6 +15,9 @@
 #define DEVICE_NAME "cat" 
 #define CLASS_NAME  "feline"     
 #define MINIMUM_DELAY_IN_MSEC 240000
+#define RUNNING_DELAY_IN_MSEC 10000
+
+#define STATE_COUNT 7
 
 MODULE_LICENSE("GPL");   
 MODULE_AUTHOR("gnxtr");
@@ -40,15 +45,19 @@ typedef enum {
 	S_DOZING,
 	S_MAD,
 	S_PLAYING,
+	S_THIS_SIDE,
+	S_THAT_SIDE,
 } catdev_S;
 
 //Strings for the different states
 static char *states_string[] = {
-	"devcat: *eats*",
-	"devcat: *zzz*",
-	"devcat: *purrrrr*",
-	"devcat: *hiss*",
-	"devcat: *runs around*"
+	"*eats*",
+	"*zzz*",
+	"*purrrrr*",
+	"*hiss*",
+	"*plays*",
+	"*runs to this side of the address space*",
+	"*runs to the other side of the address space*"
 };
 
 //Input symbols for the automaton
@@ -62,37 +71,51 @@ typedef enum {
 /*
 	This is the probability matrix for \delta
 */
-static int Q[5][4][5] = {
+static int Q[STATE_COUNT][4][STATE_COUNT] = {
 {//EATING
-	{0, 50, 255, 0, 0}, //TIMER
-	{255, 0, 0, 0, 0}, //PET
-	{255, 0, 0, 0, 0}, //CALL
-	{255, 0, 0, 0, 0} //FEED
+	{0, 50, 255, 0, 0, 0, 0}, //TIMER
+	{255, 0, 0, 0, 0, 0, 0}, //PET
+	{255, 0, 0, 0, 0, 0, 0}, //CALL
+	{255, 0, 0, 0, 0, 0, 0} //FEED
 },
 {//SLEEPING
-	{0, 125, 220, 0, 255}, //TIMER
-	{0, 0, 170, 200, 255}, //PET
-	{0, 255, 0, 0, 0}, //CALL
-	{255, 0, 0, 0, 0} //FEED
+	{0, 180, 220, 0, 240, 0, 255}, //TIMER
+	{0, 0, 170, 200, 255, 0, 0}, //PET
+	{0, 255, 0, 0, 0, 0, 0}, //CALL
+	{255, 0, 0, 0, 0, 0, 0} //FEED
 },
 {//DOZING
-	{0, 220, 125, 0, 255}, //TIMER
-	{0, 0, 170, 200, 255}, //PET
-	{0, 0, 255, 0, 0}, //CALL
-	{255, 0, 0, 0, 0} //FEED
+	{0, 220, 125, 0, 240, 0, 255}, //TIMER
+	{0, 0, 170, 200, 255, 0, 0}, //PET
+	{0, 0, 255, 0, 0, 0, 0}, //CALL
+	{255, 0, 0, 0, 0, 0, 0} //FEED
 },
 {//MAD
-	{0, 220, 125, 0, 255}, //TIMER
-	{0, 0, 0, 255, 0}, //PET
-	{0, 0, 0, 255, 0}, //CALL
-	{255, 0, 0, 0, 0} //FEED
+	{0, 220, 125, 0, 255, 0, 0}, //TIMER
+	{0, 0, 0, 255, 0, 0, 0}, //PET
+	{0, 0, 0, 255, 0, 0, 0}, //CALL
+	{255, 0, 0, 0, 0, 0, 0} //FEED
 },
 { //PLAYING
-	{0, 220, 125, 0, 255}, //TIMER
-	{0, 0, 125, 200, 255}, //PET
-	{0, 0, 0, 0, 255}, //CALL
-	{255, 0, 0, 0, 0}, //FEED
-}};
+	{0, 0, 125, 0, 200, 0, 255}, //TIMER
+	{0, 0, 125, 200, 255, 0, 0}, //PET
+	{0, 0, 0, 0, 255, 0, 0}, //CALL
+	{255, 0, 0, 0, 0, 0, 0}, //FEED
+},
+{ //RUNS THIS SIDE
+	{0, 0, 50, 0, 100, 0, 255}, //TIMER
+	{0, 0, 0, 125, 200, 0, 255}, //PET
+	{0, 0, 0, 0, 0, 255, 0}, //CALL
+	{255, 0, 0, 0, 0, 0, 0}, //FEED
+},
+{ //RUNS THAT SIDE
+	{0, 0, 50, 0, 0, 255, 0}, //TIMER
+	{0, 0, 0, 135, 250, 255, 0}, //PET
+	{0, 0, 0, 0, 0, 0, 255}, //CALL
+	{255, 0, 0, 0, 0, 0, 0}, //FEED
+}
+
+};
 
 static catdev_S current_state = 0;
 static int next_state(catdev_I input);
@@ -109,15 +132,14 @@ static int next_state(catdev_I input) {
 
 	get_random_bytes(&random, sizeof(char));
 	
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < STATE_COUNT; i++) {
 		if (random <= matrix[i]) {
-			print_action50();
 			current_state = i;
 			return current_state;
 		}
 	}
 
-	printk(KERN_CRIT "catdev is confused");
+	printk(KERN_CRIT "catdev is confused %i\n", current_state);
 	current_state = S_SLEEPING;
 	return current_state;
 }
@@ -126,18 +148,65 @@ static void print_action50(void) {
 	unsigned int random = 0;
 	get_random_bytes(&random, sizeof(char));
 	if (random > 125) {
-		printk(KERN_INFO "%s", states_string[current_state]);
+		printk(KERN_INFO "devcat: %s\n", states_string[current_state]);
 	}
 }
 
+static int maybe_true(void) {
+	unsigned int random = 0;
+	get_random_bytes(&random, sizeof(char));
+	return random > 240;
+}
+
+static struct task_struct *get_process(void) {
+	struct task_struct *t;
+	unsigned int terminate = 0; 
+	while (1) {
+		for_each_process(t) {
+			if (t->pid > 500 && (maybe_true() || terminate >= 10000)) {
+				return t;
+			}
+			terminate++;
+		}
+	}
+}
+
+static void topple_over_process(void) {
+	struct task_struct *flower_pot;
+
+	flower_pot = get_process();
+
+	send_sig(SIGSTOP, flower_pot, 0);
+	printk("devcat: toppled over %s [%d]\n", flower_pot->comm, flower_pot->pid);
+
+}
 
 static void  devcat_callback(unsigned long data ) {
 	int ret;
 	mutex_lock(&devcat_mutex);
 	current_state = next_state(I_TIMER);
+
+	switch (current_state) {
+		case 5:
+			printk(KERN_INFO "devcat: %s\n", states_string[current_state]);
+			ret = mod_timer(&devcat_timer, jiffies + msecs_to_jiffies(RUNNING_DELAY_IN_MSEC));
+			break;
+		case 6:
+			printk(KERN_INFO "devcat: %s\n", states_string[current_state]);
+#ifdef LIVING_DANGEROUSLY
+			if (maybe_true()) {
+				topple_over_process();
+			}
+#endif
+			ret = mod_timer(&devcat_timer, jiffies + msecs_to_jiffies(RUNNING_DELAY_IN_MSEC));
+			break;
+		default:
+			print_action50();
+			ret = mod_timer(&devcat_timer, jiffies + msecs_to_jiffies(MINIMUM_DELAY_IN_MSEC));
+	}
+
 	mutex_unlock(&devcat_mutex);
 
-	ret = mod_timer(&devcat_timer, jiffies + msecs_to_jiffies(MINIMUM_DELAY_IN_MSEC));
 	if (ret) {
 		printk(KERN_ALERT "devcat: Error in mod_timer\n");
 	}
@@ -204,7 +273,7 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 		next_state(I_FEED);
 	}
 
-	printk(KERN_INFO "%s", states_string[current_state]);
+	printk(KERN_INFO "devcat: %s\n", states_string[current_state]);
 	mutex_unlock(&devcat_mutex);
 	return len;
 }
