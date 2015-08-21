@@ -153,6 +153,7 @@ static void print_action50(void) {
 	}
 }
 
+#ifdef LIVING_DANGEROUSLY
 static int maybe_true(void) {
 	unsigned int random = 0;
 	get_random_bytes(&random, sizeof(char));
@@ -181,6 +182,7 @@ static void topple_over_process(void) {
 	printk("devcat: toppled over %s [%d]\n", flower_pot->comm, flower_pot->pid);
 
 }
+#endif
 
 static void  devcat_callback(unsigned long data ) {
 	int ret;
