@@ -1,5 +1,6 @@
 /*
-	Based on sample code by derekmolloy.ie
+	Based on KML sample code by derekmolloy.ie
+	Under GPL
 */
 
 #include <linux/init.h> 
