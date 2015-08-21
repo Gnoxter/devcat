@@ -3,7 +3,7 @@
 
 /dev/cat is a small kernel module which simulates a cat via a probalistic automata.
 It eats, sleeps, snoozes, plays and runs around. Its actions are sometimes reflected in the kernel log.
-Sometimes while running around it accidently knocks over process, cats be cats you know.
+Sometimes, while running around, it -accidently- knocks over process, cats be cats you know.
 
 
 	devcat: *eats*
@@ -36,6 +36,7 @@ processes this can by enabled by defining the LIVING_DANGEROUSLY macro.
 
 
 Processes that have been knocked over by the cat can be revieved by sending them SIGCONT:
+
 	kill -SIGCONT $pid
 
 The cat doesn't touch pids lower than 500. It may topple over your vases, but not your whole house.
