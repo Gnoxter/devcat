@@ -47,7 +47,7 @@ typedef enum {
 	S_MAD,
 	S_PLAYING,
 	S_THIS_SIDE,
-	S_THAT_SIDE,
+	S_OTHER_SIDE,
 } catdev_S;
 
 //Strings for the different states
@@ -188,11 +188,11 @@ static void  devcat_callback(unsigned long data ) {
 	current_state = next_state(I_TIMER);
 
 	switch (current_state) {
-		case 5:
+		case S_THIS_SIDE:
 			printk(KERN_INFO "devcat: %s\n", states_string[current_state]);
 			ret = mod_timer(&devcat_timer, jiffies + msecs_to_jiffies(RUNNING_DELAY_IN_MSEC));
 			break;
-		case 6:
+		case S_OTHER_SIDE:
 			printk(KERN_INFO "devcat: %s\n", states_string[current_state]);
 #ifdef LIVING_DANGEROUSLY
 			if (maybe_true()) {
