@@ -2,9 +2,8 @@
 
 
 /dev/cat is a small kernel module which simulates a cat via a probalistic automata.
-It eats, sleeps, snoozes, plays and runs around. Its actions are sometimes reflected in the kernel log.
-Sometimes, while running around, it -accidently- knocks over process, cats be cats you know.
-
+It eats, sleeps, snoozes, plays and runs around. Its actions are reflected in the kernel log.
+Sometimes, while running around, it ~~accidently~~ knocks over processes, cats be cats you know.
 
 	devcat: *eats*
 	devcat: *zzz*
@@ -21,7 +20,7 @@ Sometimes, while running around, it -accidently- knocks over process, cats be ca
 	devcat: *zzz*
 
 ## Feeding and other interactions
-You can have some interaction with the cat, but it mostly ignores you.
+You can interact with the cat, but it mostly ignores you.
 
     echo "feed" > /dev/cat
 	echo "pet" > /dev/cat
@@ -30,12 +29,12 @@ You can have some interaction with the cat, but it mostly ignores you.
 
 ## BUILDING
 The module needs the kernel headers at the default location. By default it doesn't SIGSTOPs random
-processes this can by enabled by defining the LIVING_DANGEROUSLY macro. 
+processes this can by enabled by defining the LIVING_DANGEROUSLY macro.
 
 	make LIVING_DANGEROUSLY=1
 
 
-Processes that have been knocked over by the cat can be revieved by sending them SIGCONT:
+Processes that have been knocked over by the cat can be revived by sending them a SIGCONT:
 
 	kill -SIGCONT $pid
 
